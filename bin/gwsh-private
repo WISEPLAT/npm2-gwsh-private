@@ -1,0 +1,62 @@
+#!/usr/bin/env node
+
+"use strict";
+
+
+const yargs = require('yargs'),
+  chalk = require('chalk');
+
+const gwsh = require('..');
+
+const packageJson = require('../package.json');
+
+
+// CLI options
+const argv = yargs
+    .usage('Usage: $0 [options]')
+    .describe('balance', 'Auto-mine until this initial Wise balance is achieved (default: 0)')
+    .describe('gwshPath', 'Path to gwsh executable to use instead of default')
+    .describe('genesisBlock', 'Genesis block overrides as a JSON string')
+    .help('h')
+    .alias('h', 'help')
+    .boolean('v', 'Verbose logging')
+    .describe('version', 'Output version.')
+    .epilogue('All other options get passed onto the gwsh executable.')
+    .parse(process.argv.slice(1));
+
+if (argv.version) {
+  return console.log(`gwsh-private ${packageJson.version}`);
+}
+
+var gwshOptions = {};
+
+var nonGwshOptionKeys = [
+  '_', '$0', 'v', 'h', 'help', 'version', 'gwshPath', 'genesisBlock', 'balance'
+]
+
+for (let key in argv) {
+  if (0 > nonGwshOptionKeys.indexOf(key)) {
+    gwshOptions[key] = argv[key];
+  }
+}
+
+
+var inst = gwsh({
+  verbose: !!argv.v,
+  balance: argv.balance,
+  gwshPath: argv.gwshPath || null,
+  genesisBlock: JSON.parse(argv.genesisBlock || 'null'),
+  gwshOptions: gwshOptions
+})
+
+inst.start()
+  .then(function() {
+    console.log(chalk.yellow(`Gwsh is now running (pid: ${inst.pid}).\n`));
+    console.log(chalk.yellow(`Wisebase:\t${inst.account}`));
+    console.log(chalk.yellow(`Data folder:\t${inst.dataDir}`));
+    console.log(chalk.yellow(`\nTo access:\tgwsh attach ipc://${inst.dataDir}/gwsh.ipc`));
+  })
+  .catch(function(err) {
+    console.error(err);
+  });
+
